@@ -9,6 +9,7 @@ use jdavidbakr\MailTracker\Contracts\SentEmailModel;
 
 /**
  * @property string $hash
+ * @property string $type
  * @property string $headers
  * @property string $sender
  * @property string $recipient
@@ -29,6 +30,7 @@ class SentEmail extends Model implements SentEmailModel
 
     protected $fillable = [
         'hash',
+        'type',
         'headers',
         'sender_name',
         'sender_email',

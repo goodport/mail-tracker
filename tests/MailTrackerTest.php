@@ -145,6 +145,9 @@ class MailTrackerTest extends TestCase
         ])->first();
         $this->assertEquals($name . ' <' . $email . '>', $sent_email->recipient);
         $this->assertEquals('From Name <from@johndoe.com>', $sent_email->sender);
+
+        $this->artisan('mail-tracker:purge');
+
         $this->assertNull($old_email->fresh());
         $this->assertNull($old_url->fresh());
     }
@@ -1154,6 +1157,9 @@ class MailTrackerTest extends TestCase
             'sender_email'    => 'from@johndoe.com',
             'subject'         => $subject,
         ], 'secondary');
+
+        $this->artisan('mail-tracker:purge');
+
         $this->assertNull($old_email->fresh());
         $this->assertNull($old_url->fresh());
     }

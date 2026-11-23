@@ -12,9 +12,28 @@ return [
     'track-links'               => true,
 
     /**
-     * Optionally expire old emails, set to 0 to keep forever.
+     * Default number of days to keep sent emails.
+     * Used for every type without an override in "expire-days-by-type".
+     * Set to 0 to keep them forever.
      */
     'expire-days'               => 60,
+
+    /**
+     * Per-type retention overrides, in days.
+     * Types not listed here use "expire-days".
+     * Set a type to 0 to keep it forever.
+     */
+    'expire-days-by-type'       => [
+        // 'marketing' => 30,
+    ],
+
+    /**
+     * Maps a Mailable class to a retention type.
+     * Unmapped mailables are stored with the "unknown" type.
+     */
+    'mailable-types'            => [
+        // App\Mail\MarketingMail::class => 'marketing',
+    ],
 
     /**
      * Where should the pingback URL route be?

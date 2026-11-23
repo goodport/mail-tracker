@@ -8,7 +8,6 @@ use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Mail\SentMessage;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use jdavidbakr\MailTracker\Contracts\SentEmailModel;
@@ -23,6 +22,11 @@ use Symfony\Component\Mime\Part\TextPart;
 
 class MailTracker
 {
+    /**
+     * Retention type stored for mailables without a configured type.
+     */
+    public const TYPE__UNKNOWN = 'unknown';
+
     // Set this to "false" to skip this library migrations
     public static $runsMigrations = true;
 
@@ -108,10 +112,21 @@ class MailTracker
         $message = $event->message;
 
         // Create the trackers
-        $this->createTrackers($message);
+        $this->createTrackers($message, $this->resolveType($event->data['__laravel_mailable'] ?? null));
+    }
 
-        // Purge old records
-        $this->purgeOldRecords();
+    /**
+     * Resolve the configured retention type for a mailable class.
+     */
+    protected function resolveType(?string $mailableClass): string
+    {
+        if ($mailableClass === null) {
+            return self::TYPE__UNKNOWN;
+        }
+
+        $typesByMailable = (array) config('mail-tracker.mailable-types');
+
+        return $typesByMailable[$mailableClass] ?? self::TYPE__UNKNOWN;
     }
 
     public function messageSent(MessageSent $event): void
@@ -236,9 +251,10 @@ class MailTracker
      * Create the trackers
      *
      * @param  Email $message
+     * @param  string $type
      * @return void
      */
-    protected function createTrackers(Email $message)
+    protected function createTrackers(Email $message, string $type)
     {
         foreach ($message->getTo() as $toAddress) {
             $to_email = $toAddress->getAddress();
@@ -324,7 +340,8 @@ class MailTracker
                     'opens' => 0,
                     'clicks' => 0,
                     'message_id' => Str::uuid(),
-                ]), function(Model|SentEmailModel $sentEmail) use ($original_html, $hash) {
+                ]), function(Model|SentEmailModel $sentEmail) use ($original_html, $hash, $type) {
+                    $sentEmail->type = $type;
                     $sentEmail->fillContent($original_html, $hash);
 
                     $sentEmail->save();
@@ -336,29 +353,5 @@ class MailTracker
 
         // Remove this header if it was set
         $message->getHeaders()->remove('X-No-Track');
-    }
-
-    /**
-     * Purge old records in the database
-     *
-     * @return void
-     */
-    protected function purgeOldRecords()
-    {
-        if (config('mail-tracker.expire-days') > 0) {
-            $emails = MailTracker::sentEmailModel()->newQuery()->where('created_at', '<', \Carbon\Carbon::now()
-                ->subDays(config('mail-tracker.expire-days')))
-                ->select('id', 'meta')
-                ->get();
-            // remove files
-            $emails->each(function ($email) {
-                if ($email->meta && ($filePath = $email->meta->get('content_file_path'))) {
-                    Storage::disk(config('mail-tracker.tracker-filesystem'))->delete($filePath);
-                }
-            });
-
-            MailTracker::sentEmailUrlClickedModel()->newQuery()->whereIn('sent_email_id', $emails->pluck('id'))->delete();
-            MailTracker::sentEmailModel()->newQuery()->whereIn('id', $emails->pluck('id'))->delete();
-        }
     }
 }

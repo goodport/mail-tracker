@@ -1,21 +1,26 @@
 {
-    "name": "jdavidbakr/mail-tracker",
+    "name": "goodport/mail-tracker",
+    "description": "Log and track outgoing Laravel emails with per-type retention and a built-in admin panel.",
     "type": "library",
-    "description": "Logs and tracks all outgoing emails from Laravel",
-    "keywords": [
-        "jdavidbakr",
-        "MailTracker"
-    ],
-    "minimum-stability": "dev",
-    "homepage": "https://github.com/jdavidbakr/MailTracker",
+    "homepage": "https://github.com/goodport/mail-tracker",
     "license": "MIT",
     "authors": [
         {
+            "name": "Goodport"
+        },
+        {
             "name": "J David Baker",
             "email": "me@jdavidbaker.com",
-            "homepage": "http://www.jdavidbaker.com",
-            "role": "Developer"
+            "role": "Original author"
         }
+    ],
+    "keywords": [
+        "email",
+        "email-tracking",
+        "laravel",
+        "mail",
+        "retention",
+        "tracking"
     ],
     "require": {
         "php": "^8.2",
@@ -25,6 +30,7 @@
         "aws/aws-sdk-php": "^3.372"
     },
     "require-dev": {
+        "laravel/pint": "^1.13",
         "phpunit/phpunit": "^9.5.10|^10.5|^11.5.3|^12.5.12",
         "orchestra/testbench": "^8.0|^9.0|^10.0|^11.0",
         "mockery/mockery": "^1.4.4"
@@ -43,7 +49,8 @@
         }
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "vendor/bin/phpunit",
+        "format": "vendor/bin/pint"
     },
     "extra": {
         "laravel": {
@@ -51,5 +58,9 @@
                 "jdavidbakr\\MailTracker\\MailTrackerServiceProvider"
             ]
         }
-    }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev"
 }

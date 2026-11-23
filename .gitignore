@@ -2,6 +2,13 @@ vendor
 storage
 setup-test-variables.sh
 .idea
-.php_cs.cache
+.phpunit.cache
 .phpunit.result.cache
 composer.lock
+.env
+.env.*
+.vscode
+.kilo
+.gigacode
+.codeassistant
+.DS_Store

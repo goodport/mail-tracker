@@ -2,12 +2,14 @@
 
 namespace jdavidbakr\MailTracker;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use jdavidbakr\MailTracker\Console\PurgeSentEmails;
 use jdavidbakr\MailTracker\Events\ValidLinkEvent;
 use jdavidbakr\MailTracker\Listener\DomainExistsInContentListener;
 use jdavidbakr\MailTracker\Middleware\ValidateSignature;
@@ -31,6 +33,7 @@ class MailTrackerServiceProvider extends ServiceProvider
 
         // Register console commands
         $this->registerCommands();
+        $this->registerPurgeSchedule();
 
         // Hook into the mailer
         Event::listen(MessageSending::class, function (MessageSending $event) {
@@ -93,8 +96,26 @@ class MailTrackerServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 Console\MigrateRecipients::class,
+                PurgeSentEmails::class,
             ]);
         }
+    }
+
+    /**
+     * Schedule the retention purge so the package works without extra setup.
+     */
+    protected function registerPurgeSchedule(): void
+    {
+        if (! $this->app->runningInConsole()) {
+            return;
+        }
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('mail-tracker:purge')
+                ->hourly()
+                ->withoutOverlapping(60)
+                ->onOneServer();
+        });
     }
 
     /**
