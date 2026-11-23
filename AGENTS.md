@@ -91,6 +91,4 @@ database with `migrate:fresh`; migrations run through the package test case.
 ## Documentation and Language
 
 All code comments, PHPDoc, README, AGENTS, CHANGELOG, and examples are written in
-English because the package is published publicly. Examples must use neutral,
-fictional data and must not reference any private application, domain, or
-internal infrastructure. Keep `CHANGELOG.md` up to date.
+English because the package is published publicly. Keep `CHANGELOG.md` up to date.
