@@ -82,6 +82,9 @@ All settings live in `config/mail-tracker.php`.
 - **expire-days-by-type** — per-type overrides in days. A type set to `0` is kept
   forever.
 - **mailable-types** — maps a Mailable class to a retention type.
+- **purge-schedule** — cron expression for the automatic purge. Defaults to
+  daily at 03:00 in the application timezone. Set it to `null` to disable the
+  automatic schedule and run the command manually.
 
 ### Queues and integrations
 
@@ -133,8 +136,17 @@ that is an application-level task.
 ### How purging works
 
 Cleanup is handled by the `mail-tracker:purge` command. The package registers it
-in the Laravel scheduler to run hourly, so no application code changes are
-needed:
+in the Laravel scheduler, so no application code changes are needed. The default
+schedule is daily at 03:00; change `purge-schedule` to any cron expression to run
+it more or less often, or set it to `null` to disable automatic registration:
+
+```php
+'purge-schedule' => '0 3 * * *', // daily at 03:00
+// 'purge-schedule' => '0 * * * *', // hourly
+// 'purge-schedule' => null,        // manual runs only
+```
+
+The scheduled run:
 
 - expired rows are selected and removed in bounded batches, so a single run does
   not load the whole table into memory;
@@ -144,6 +156,9 @@ needed:
   duplicates on multi-server deployments. The cache store must support locks;
 - each batch also deletes the related `sent_emails_url_clicked` rows and the
   content files written by the `filesystem` strategy.
+
+With the built-in limits, one run removes at most 10,000 emails. Increase the
+schedule frequency if the sending volume is high enough to outpace that.
 
 The command can also be run manually:
 

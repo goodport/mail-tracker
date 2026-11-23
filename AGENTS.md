@@ -50,8 +50,10 @@ The package is a fork of `jdavidbakr/mail-tracker`. The PHP namespace remains
 - Existing rows receive the `unknown` type from the migration default. The
   package does not classify historical rows; that is an application concern.
 - Cleanup is owned by the `mail-tracker:purge` command, which the service
-  provider registers in the Laravel scheduler to run hourly. Sending an email no
-  longer purges records. The application must run `php artisan schedule:run`.
+  provider registers in the Laravel scheduler. `purge-schedule` holds the cron
+  expression and defaults to daily at 03:00; `null` disables automatic
+  registration. Sending an email no longer purges records. The application must
+  run `php artisan schedule:run`.
 - The command selects expired rows per retention group, removes at most a fixed
   number of batches per group, and stops after a fixed number of batches per run.
 - `withoutOverlapping()` and `onOneServer()` guard the scheduled command. The

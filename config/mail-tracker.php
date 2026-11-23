@@ -36,6 +36,13 @@ return [
     ],
 
     /**
+     * Cron expression for the scheduled retention purge.
+     * Defaults to daily at 03:00 in the application timezone.
+     * Set to null to register no schedule and run the command manually.
+     */
+    'purge-schedule'            => '0 3 * * *',
+
+    /**
      * Where should the pingback URL route be?
      */
     'route'                     => [

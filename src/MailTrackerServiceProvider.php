@@ -111,8 +111,14 @@ class MailTrackerServiceProvider extends ServiceProvider
         }
 
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $scheduleExpression = config('mail-tracker.purge-schedule', '0 3 * * *');
+
+            if (empty($scheduleExpression)) {
+                return;
+            }
+
             $schedule->command('mail-tracker:purge')
-                ->hourly()
+                ->cron($scheduleExpression)
                 ->withoutOverlapping(60)
                 ->onOneServer();
         });

@@ -2,6 +2,7 @@
 
 namespace jdavidbakr\MailTracker\Tests\Console;
 
+use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -48,19 +49,53 @@ class PurgeSentEmailsTest extends TestCase
     }
 
     /**
-     * The package registers the purge command in the scheduler.
+     * The package registers the purge command in the scheduler daily by default.
      */
     #[Test]
     public function it_registers_the_purge_command_in_the_schedule(): void
     {
+        $event = $this->getPurgeScheduleEvent();
+
+        $this->assertNotNull($event);
+        $this->assertSame('0 3 * * *', $event->expression);
+    }
+
+    /**
+     * The schedule frequency comes from the configuration.
+     */
+    #[Test]
+    public function it_uses_the_configured_schedule_expression(): void
+    {
+        Config::set('mail-tracker.purge-schedule', '*/15 * * * *');
+
+        $event = $this->getPurgeScheduleEvent();
+
+        $this->assertNotNull($event);
+        $this->assertSame('*/15 * * * *', $event->expression);
+    }
+
+    /**
+     * A null schedule expression disables automatic registration.
+     */
+    #[Test]
+    public function it_does_not_register_the_schedule_when_disabled(): void
+    {
+        Config::set('mail-tracker.purge-schedule', null);
+
+        $this->assertNull($this->getPurgeScheduleEvent());
+    }
+
+    private function getPurgeScheduleEvent(): ?Event
+    {
         $schedule = $this->app->make(Schedule::class);
 
-        $events = array_filter(
-            $schedule->events(),
-            fn ($event) => str_contains((string) $event->command, 'mail-tracker:purge')
-        );
+        foreach ($schedule->events() as $event) {
+            if (str_contains((string) $event->command, 'mail-tracker:purge')) {
+                return $event;
+            }
+        }
 
-        $this->assertCount(1, $events);
+        return null;
     }
 
     private function createSentEmail(int $ageInDays): Model
