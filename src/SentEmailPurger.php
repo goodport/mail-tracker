@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Deletes expired sent emails in bounded batches, honoring per-type retention.
+ * Deletes expired sent emails in bounded batches, honoring per-class retention.
  */
 class SentEmailPurger
 {
@@ -18,7 +18,7 @@ class SentEmailPurger
     private const BATCH_SIZE = 1000;
 
     /**
-     * Maximum number of batches processed per type group in one run.
+     * Maximum number of batches processed per retention group in one run.
      */
     private const MAX_BATCHES = 10;
 
@@ -35,65 +35,87 @@ class SentEmailPurger
      */
     private function purgeExpiredEmails(): void
     {
-        foreach ($this->groupStoredTypesByExpireDays() as $expireDays => $types) {
+        foreach ($this->groupStoredClassesByExpireDays() as $expireDays => $group) {
             if ($expireDays <= 0) {
                 continue;
             }
 
-            $this->purgeTypes($types, $expireDays);
+            $this->purgeGroup($group['classes'], $group['has_null'], $expireDays);
         }
     }
 
     /**
-     * Group the types present in the database by their configured retention period.
+     * Group the classes present in the database by their configured retention period.
      *
-     * @return array<int, list<string>>
+     * @return array<int, array{classes: list<string>, has_null: bool}>
      */
-    private function groupStoredTypesByExpireDays(): array
+    private function groupStoredClassesByExpireDays(): array
     {
         $defaultDays = (int) config('mail-tracker.expire-days');
-        $daysByType = (array) config('mail-tracker.expire-days-by-type');
+        $daysByClass = $this->getDaysByClass();
 
         $groups = [];
 
-        foreach ($this->getStoredTypes() as $type) {
-            $days = array_key_exists($type, $daysByType)
-                ? (int) $daysByType[$type]
+        foreach ($this->getStoredClasses() as $mailClass) {
+            $days = $mailClass !== null && isset($daysByClass[$mailClass])
+                ? $daysByClass[$mailClass]
                 : $defaultDays;
 
-            $groups[$days][] = $type;
+            $groups[$days] ??= ['classes' => [], 'has_null' => false];
+
+            if ($mailClass === null) {
+                $groups[$days]['has_null'] = true;
+            } else {
+                $groups[$days]['classes'][] = $mailClass;
+            }
         }
 
         return $groups;
     }
 
     /**
-     * @return list<string>
+     * Build a class-to-days map from the grouped configuration.
+     *
+     * @return array<string, int>
      */
-    private function getStoredTypes(): array
+    private function getDaysByClass(): array
+    {
+        $daysByClass = [];
+
+        foreach ((array) config('mail-tracker.expire-days-by-class') as $days => $classes) {
+            foreach ((array) $classes as $mailClass) {
+                $daysByClass[$mailClass] = (int) $days;
+            }
+        }
+
+        return $daysByClass;
+    }
+
+    /**
+     * @return list<string|null>
+     */
+    private function getStoredClasses(): array
     {
         return MailTracker::sentEmailModel()
             ->newQuery()
             ->distinct()
-            ->pluck('type')
+            ->pluck('mail_class')
             ->all();
     }
 
     /**
-     * @param  list<string>  $types
+     * @param  list<string>  $classes
      */
-    private function purgeTypes(array $types, int $expireDays): void
+    private function purgeGroup(array $classes, bool $hasNull, int $expireDays): void
     {
+        if ($classes === [] && ! $hasNull) {
+            return;
+        }
+
         $cutoff = Carbon::now()->subDays($expireDays);
 
         for ($batch = 0; $batch < self::MAX_BATCHES; $batch++) {
-            $emails = MailTracker::sentEmailModel()
-                ->newQuery()
-                ->whereIn('type', $types)
-                ->where('created_at', '<', $cutoff)
-                ->select(['id', 'meta'])
-                ->limit(self::BATCH_SIZE)
-                ->get();
+            $emails = $this->getExpiredBatch($classes, $hasNull, $cutoff);
 
             if ($emails->isEmpty()) {
                 return;
@@ -102,6 +124,33 @@ class SentEmailPurger
             $this->deleteContentFiles($emails);
             $this->deleteEmails($emails);
         }
+    }
+
+    /**
+     * @param  list<string>  $classes
+     * @return Collection<int, Model>
+     */
+    private function getExpiredBatch(array $classes, bool $hasNull, Carbon $cutoff): Collection
+    {
+        return MailTracker::sentEmailModel()
+            ->newQuery()
+            ->where('created_at', '<', $cutoff)
+            ->where(function ($query) use ($classes, $hasNull) {
+                if ($classes === []) {
+                    $query->whereNull('mail_class');
+
+                    return;
+                }
+
+                $query->whereIn('mail_class', $classes);
+
+                if ($hasNull) {
+                    $query->orWhereNull('mail_class');
+                }
+            })
+            ->select(['id', 'meta'])
+            ->limit(self::BATCH_SIZE)
+            ->get();
     }
 
     /**

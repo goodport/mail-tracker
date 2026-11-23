@@ -8,7 +8,7 @@ This repository is the `goodport/mail-tracker` fork of
 [`jdavidbakr/mail-tracker`](https://github.com/jdavidbakr/MailTracker), originally
 created by J David Baker. The PHP namespace remains `jdavidbakr\MailTracker`.
 
-Compared with the upstream package, this fork adds per-type retention for sent
+Compared with the upstream package, this fork adds per-class retention for sent
 email and replaces the unbounded purge with scheduled batch deletion.
 
 ## Requirements
@@ -77,13 +77,11 @@ All settings live in `config/mail-tracker.php`.
 
 ### Retention
 
-- **expire-days** — default retention in days for every type without an
+- **expire-days** — default retention in days for every class without an
   override. Set it to `0` to keep email forever.
-- **expire-days-by-type** — per-type overrides in days. A type set to `0` is kept
-  forever.
-- **mailable-types** — maps a Mailable class to a retention type.
-- **notification-types** — maps a Notification class to a retention type. Used
-  for notifications sent through the `mail` channel.
+- **expire-days-by-class** — retention overrides grouped by number of days. Each
+  group is a list of Mailable or Notification classes. A group with `0` days is
+  kept forever.
 - **purge-schedule** — cron expression for the automatic purge. Defaults to
   daily at 03:00 in the application timezone. Set it to `null` to disable the
   automatic schedule and run the command manually.
@@ -97,54 +95,45 @@ All settings live in `config/mail-tracker.php`.
 - **fallback-event-listeners** — listeners for signed tracking links that were
   created before the signature middleware was introduced.
 
-## Per-Type Retention
+## Per-Class Retention
 
-By default, every email is retained for `expire-days` days. To keep
-different kinds of email for different periods, map the sending class to a type
-and configure that type. Mailables are mapped with `mailable-types`, and
-notifications sent through the `mail` channel are mapped with
-`notification-types`.
+By default, every email is retained for `expire-days` days. To keep different
+kinds of email for different periods, group their Mailable or Notification
+classes by the number of days they should be kept:
 
 ```php
 // config/mail-tracker.php
 'expire-days' => 60,
 
-'expire-days-by-type' => [
-    'marketing'     => 30,
-    'transactional' => 365,
-    'receipt'       => 0, // kept forever
-    'notification'  => 90,
-],
-
-'mailable-types' => [
-    App\Mail\MarketingMail::class      => 'marketing',
-    App\Mail\ReceiptMail::class        => 'receipt',
-    App\Mail\WelcomeMail::class        => 'transactional',
-],
-
-'notification-types' => [
-    App\Notifications\ExampleNotification::class => 'notification',
+'expire-days-by-class' => [
+    30 => [
+        App\Mail\ExampleMail::class,
+    ],
+    365 => [
+        App\Mail\AnotherExampleMail::class,
+        App\Notifications\ExampleNotification::class,
+    ],
 ],
 ```
 
-The type is resolved when the message is sent, in this order:
+Each key is a retention period in days, and its value is the list of classes
+retained for that period. More important email can be placed in a group with a
+larger number; a group with `0` days is kept forever.
 
-- a Mailable listed in `mailable-types` is stored with the configured type;
-- otherwise, a Notification listed in `notification-types` is stored with the
-  configured type;
-- a Mailable or Notification without a mapping, and messages sent without
-  either, are stored as `unknown`.
+The class is resolved when the message is sent:
 
-Queued notifications are resolved the same way; Laravel passes the notification
-class to the mail event for both synchronous and queued delivery.
+- a Mailable class comes from `__laravel_mailable`;
+- otherwise a Notification class comes from `__laravel_notification`;
+- messages sent without either have no class.
 
-A type missing from `expire-days-by-type` follows `expire-days`,
-including `unknown`. Set a type to `0` to keep it forever.
+The class is stored in the `mail_class` column of `sent_emails`. Purge looks the
+stored class up in `expire-days-by-class`; a class that is not listed, or email
+without a class, follows `expire-days`. Queued notifications store their class
+the same way as synchronous notifications.
 
-The type is stored in the `type` column of `sent_emails`. The migration defaults
-existing rows to `unknown`, so they follow the default retention. The package
-does not classify historical rows; if you need to separate old email by type,
-that is an application-level task.
+Existing rows receive no class from the migration, so they follow the default
+retention. The package does not classify historical rows; that is an
+application-level task.
 
 ### How purging works
 
@@ -286,8 +275,8 @@ class TrackedEmail extends Model implements SentEmailModel
 }
 ```
 
-A replacement `SentEmail` model must provide the `type` column when retention is
-enabled.
+A replacement `SentEmail` model must provide the `mail_class` column when
+retention is enabled.
 
 ## Admin Panel
 

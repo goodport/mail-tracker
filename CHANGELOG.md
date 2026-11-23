@@ -5,6 +5,33 @@ All notable changes to this package are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-11-23
+
+### Changed
+
+- Retention is configured per class. `expire-days-by-class` groups Mailable and
+  Notification classes by their retention period in days, and `expire-days`
+  remains the default for every unlisted class.
+- The sending class is stored in the new `mail_class` column. A Mailable class
+  takes priority over a Notification class; messages sent without either store
+  no class.
+- The admin email list shows `Mail Class`, and the email view page displays it
+  above the rendered content.
+- Existing rows receive no class and follow `expire-days`.
+
+### Removed
+
+- `expire-days-by-type`, `mailable-types`, and `notification-types`.
+- The `type` column and its `(type, created_at)` index.
+
+### Upgrade Notes
+
+- Run the migrations. They add `mail_class` with a `(mail_class, created_at)`
+  index and drop the `type` column. Existing rows are not reclassified.
+- Replace the previous retention configuration with `expire-days-by-class`.
+- Notification support added in 1.2.0 is preserved through the class-based
+  configuration.
+
 ## [1.2.0] - 2026-11-23
 
 ### Added

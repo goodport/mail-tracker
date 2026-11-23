@@ -102,7 +102,7 @@ class PurgeSentEmailsTest extends TestCase
     {
         $email = MailTracker::sentEmailModel();
         $email->hash = Str::random(32);
-        $email->type = MailTracker::TYPE__UNKNOWN;
+        $email->mail_class = null;
         $email->created_at = Carbon::now()->subDays($ageInDays);
         $email->save();
 

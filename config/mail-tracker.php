@@ -13,34 +13,22 @@ return [
 
     /**
      * Default number of days to keep sent emails.
-     * Used for every type without an override in "expire-days-by-type".
+     * Used for every class not listed in "expire-days-by-class".
      * Set to 0 to keep them forever.
      */
     'expire-days'               => 60,
 
     /**
-     * Per-type retention overrides, in days.
-     * Types not listed here use "expire-days".
-     * Set a type to 0 to keep it forever.
+     * Retention overrides grouped by number of days.
+     * Each group is a list of Mailable or Notification classes.
+     * Classes not listed here use "expire-days".
+     * Set a group key to 0 to keep its classes forever.
      */
-    'expire-days-by-type'       => [
-        // 'marketing' => 30,
-    ],
-
-    /**
-     * Maps a Mailable class to a retention type.
-     * Unmapped mailables are stored with the "unknown" type.
-     */
-    'mailable-types'            => [
-        // App\Mail\MarketingMail::class => 'marketing',
-    ],
-
-    /**
-     * Maps a Notification class to a retention type.
-     * Used when the message has no Mailable class.
-     */
-    'notification-types'        => [
-        // App\Notifications\ExampleNotification::class => 'notification',
+    'expire-days-by-class'      => [
+        // 365 => [
+        //     App\Mail\ExampleMail::class,
+        //     App\Notifications\ExampleNotification::class,
+        // ],
     ],
 
     /**

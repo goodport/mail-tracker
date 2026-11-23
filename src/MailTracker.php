@@ -22,11 +22,6 @@ use Symfony\Component\Mime\Part\TextPart;
 
 class MailTracker
 {
-    /**
-     * Retention type stored for mailables without a configured type.
-     */
-    public const TYPE__UNKNOWN = 'unknown';
-
     // Set this to "false" to skip this library migrations
     public static $runsMigrations = true;
 
@@ -112,33 +107,19 @@ class MailTracker
         $message = $event->message;
 
         // Create the trackers
-        $this->createTrackers($message, $this->resolveType($event->data));
+        $this->createTrackers($message, $this->resolveMailClass($event->data));
     }
 
     /**
-     * Resolve the configured retention type for the message data.
+     * Resolve the class that produced the message.
      *
-     * Mailable mappings take priority over notification mappings.
+     * Mailables take priority over notifications.
      *
      * @param  array<string, mixed>  $data
      */
-    protected function resolveType(array $data): string
+    protected function resolveMailClass(array $data): ?string
     {
-        $mailableTypes = (array) config('mail-tracker.mailable-types');
-        $mailableClass = $data['__laravel_mailable'] ?? null;
-
-        if ($mailableClass !== null && isset($mailableTypes[$mailableClass])) {
-            return $mailableTypes[$mailableClass];
-        }
-
-        $notificationTypes = (array) config('mail-tracker.notification-types');
-        $notificationClass = $data['__laravel_notification'] ?? null;
-
-        if ($notificationClass !== null && isset($notificationTypes[$notificationClass])) {
-            return $notificationTypes[$notificationClass];
-        }
-
-        return self::TYPE__UNKNOWN;
+        return $data['__laravel_mailable'] ?? $data['__laravel_notification'] ?? null;
     }
 
     public function messageSent(MessageSent $event): void
@@ -263,10 +244,10 @@ class MailTracker
      * Create the trackers
      *
      * @param  Email $message
-     * @param  string $type
+     * @param  string|null $mailClass
      * @return void
      */
-    protected function createTrackers(Email $message, string $type)
+    protected function createTrackers(Email $message, ?string $mailClass)
     {
         foreach ($message->getTo() as $toAddress) {
             $to_email = $toAddress->getAddress();
@@ -352,8 +333,8 @@ class MailTracker
                     'opens' => 0,
                     'clicks' => 0,
                     'message_id' => Str::uuid(),
-                ]), function(Model|SentEmailModel $sentEmail) use ($original_html, $hash, $type) {
-                    $sentEmail->type = $type;
+                ]), function(Model|SentEmailModel $sentEmail) use ($original_html, $hash, $mailClass) {
+                    $sentEmail->mail_class = $mailClass;
                     $sentEmail->fillContent($original_html, $hash);
 
                     $sentEmail->save();
