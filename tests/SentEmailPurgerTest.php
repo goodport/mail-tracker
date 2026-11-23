@@ -5,10 +5,12 @@ namespace jdavidbakr\MailTracker\Tests;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use jdavidbakr\MailTracker\MailTracker;
 use jdavidbakr\MailTracker\SentEmailPurger;
+use jdavidbakr\MailTracker\Tests\Support\MarketingNotification;
 use PHPUnit\Framework\Attributes\Test;
 
 class SentEmailPurgerTest extends TestCase
@@ -51,6 +53,33 @@ class SentEmailPurgerTest extends TestCase
 
         $this->assertDatabaseHas('sent_emails', ['id' => $kept->id]);
         $this->assertDatabaseMissing('sent_emails', ['id' => $expired->id]);
+    }
+
+    /**
+     * Emails are purged using the retention of their notification type.
+     */
+    #[Test]
+    public function it_purges_emails_by_notification_type(): void
+    {
+        Config::set('mail-tracker.expire-days', 60);
+        Config::set('mail-tracker.expire-days-by-type', ['marketing' => 1]);
+        Config::set('mail-tracker.notification-types', [
+            MarketingNotification::class => 'marketing',
+        ]);
+
+        Notification::route('mail', 'recipient@example.com')
+            ->notify(new MarketingNotification);
+
+        $notificationEmail = MailTracker::sentEmailModel()->newQuery()->first();
+        $notificationEmail->created_at = Carbon::now()->subDays(10);
+        $notificationEmail->save();
+
+        $defaultEmail = $this->createSentEmail(MailTracker::TYPE__UNKNOWN, 10);
+
+        (new SentEmailPurger)->purge();
+
+        $this->assertDatabaseMissing('sent_emails', ['id' => $notificationEmail->id]);
+        $this->assertDatabaseHas('sent_emails', ['id' => $defaultEmail->id]);
     }
 
     /**

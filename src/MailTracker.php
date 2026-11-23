@@ -112,21 +112,33 @@ class MailTracker
         $message = $event->message;
 
         // Create the trackers
-        $this->createTrackers($message, $this->resolveType($event->data['__laravel_mailable'] ?? null));
+        $this->createTrackers($message, $this->resolveType($event->data));
     }
 
     /**
-     * Resolve the configured retention type for a mailable class.
+     * Resolve the configured retention type for the message data.
+     *
+     * Mailable mappings take priority over notification mappings.
+     *
+     * @param  array<string, mixed>  $data
      */
-    protected function resolveType(?string $mailableClass): string
+    protected function resolveType(array $data): string
     {
-        if ($mailableClass === null) {
-            return self::TYPE__UNKNOWN;
+        $mailableTypes = (array) config('mail-tracker.mailable-types');
+        $mailableClass = $data['__laravel_mailable'] ?? null;
+
+        if ($mailableClass !== null && isset($mailableTypes[$mailableClass])) {
+            return $mailableTypes[$mailableClass];
         }
 
-        $typesByMailable = (array) config('mail-tracker.mailable-types');
+        $notificationTypes = (array) config('mail-tracker.notification-types');
+        $notificationClass = $data['__laravel_notification'] ?? null;
 
-        return $typesByMailable[$mailableClass] ?? self::TYPE__UNKNOWN;
+        if ($notificationClass !== null && isset($notificationTypes[$notificationClass])) {
+            return $notificationTypes[$notificationClass];
+        }
+
+        return self::TYPE__UNKNOWN;
     }
 
     public function messageSent(MessageSent $event): void

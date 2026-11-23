@@ -5,6 +5,23 @@ All notable changes to this package are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-23
+
+### Added
+
+- `notification-types` configuration key that maps a Notification class to a
+  retention type.
+- Type resolution now checks `__laravel_notification` after
+  `__laravel_mailable`, so notifications sent through the `mail` channel use
+  their own retention. Queued notifications resolve the same way.
+- The admin email list shows the stored type, and the email view page displays
+  it above the rendered content.
+
+### Changed
+
+- Notification email is no longer stored as `unknown` when its class is mapped
+  in `notification-types`.
+
 ## [1.1.0] - 2026-11-23
 
 ### Added

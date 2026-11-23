@@ -82,6 +82,8 @@ All settings live in `config/mail-tracker.php`.
 - **expire-days-by-type** — per-type overrides in days. A type set to `0` is kept
   forever.
 - **mailable-types** — maps a Mailable class to a retention type.
+- **notification-types** — maps a Notification class to a retention type. Used
+  for notifications sent through the `mail` channel.
 - **purge-schedule** — cron expression for the automatic purge. Defaults to
   daily at 03:00 in the application timezone. Set it to `null` to disable the
   automatic schedule and run the command manually.
@@ -98,8 +100,10 @@ All settings live in `config/mail-tracker.php`.
 ## Per-Type Retention
 
 By default, every email is retained for `expire-days` days. To keep
-different kinds of email for different periods, map a Mailable class to a type
-and configure that type.
+different kinds of email for different periods, map the sending class to a type
+and configure that type. Mailables are mapped with `mailable-types`, and
+notifications sent through the `mail` channel are mapped with
+`notification-types`.
 
 ```php
 // config/mail-tracker.php
@@ -109,21 +113,30 @@ and configure that type.
     'marketing'     => 30,
     'transactional' => 365,
     'receipt'       => 0, // kept forever
+    'notification'  => 90,
 ],
 
 'mailable-types' => [
-    App\Mail\MarketingMail::class     => 'marketing',
-    App\Mail\ReceiptMail::class       => 'receipt',
-    App\Mail\WelcomeMail::class       => 'transactional',
+    App\Mail\MarketingMail::class      => 'marketing',
+    App\Mail\ReceiptMail::class        => 'receipt',
+    App\Mail\WelcomeMail::class        => 'transactional',
+],
+
+'notification-types' => [
+    App\Notifications\ExampleNotification::class => 'notification',
 ],
 ```
 
-The type is resolved when the message is sent:
+The type is resolved when the message is sent, in this order:
 
 - a Mailable listed in `mailable-types` is stored with the configured type;
-- a Mailable without a mapping is stored as `unknown`;
-- a message sent without a Mailable, such as `Mail::raw()`, is stored as
-  `unknown`.
+- otherwise, a Notification listed in `notification-types` is stored with the
+  configured type;
+- a Mailable or Notification without a mapping, and messages sent without
+  either, are stored as `unknown`.
+
+Queued notifications are resolved the same way; Laravel passes the notification
+class to the mail event for both synchronous and queued delivery.
 
 A type missing from `expire-days-by-type` follows `expire-days`,
 including `unknown`. Set a type to `0` to keep it forever.

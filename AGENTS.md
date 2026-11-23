@@ -41,9 +41,12 @@ The package is a fork of `jdavidbakr/mail-tracker`. The PHP namespace remains
 - Every outgoing message is inspected on `MessageSending`. Unless the message
   carries the `X-No-Track` header, one `sent_emails` row is stored per recipient
   and sender pair.
-- The retention type is resolved from `$event->data['__laravel_mailable']`
-  through `mailable-types`. Mailables without a mapping, and messages sent
-  without a mailable, are stored with the `unknown` type.
+- The retention type is resolved from `$event->data` in priority order:
+  `__laravel_mailable` through `mailable-types`, then
+  `__laravel_notification` through `notification-types`. Unmapped classes and
+  messages sent without either are stored with the `unknown` type.
+- Queued notifications carry `__laravel_notification` too, so they resolve the
+  same way as synchronous notifications.
 - `expire-days` defines the retention for every type without an override.
   `expire-days-by-type` overrides it per type. A value of `0` keeps the matching
   emails forever.

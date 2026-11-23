@@ -64,6 +64,7 @@
                         <th>SMTP</th>
                         <th>Recipient</th>
                         <th>Subject</th>
+                        <th>Type</th>
                         <th>First View</th>
                         <th>Opens</th>
                         <th>First Click</th>
@@ -81,6 +82,7 @@
                       </td>
                       <td>{{$email->recipient}}</td>
                       <td>{{$email->subject}}</td>
+                      <td>{{$email->type}}</td>
                       <td>{{$email->opened_at}}</td>
                       <td>{{$email->opens}}</td>
                       <td>{{$email->clicked_at}}</td>

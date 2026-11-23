@@ -36,6 +36,14 @@ return [
     ],
 
     /**
+     * Maps a Notification class to a retention type.
+     * Used when the message has no Mailable class.
+     */
+    'notification-types'        => [
+        // App\Notifications\ExampleNotification::class => 'notification',
+    ],
+
+    /**
      * Cron expression for the scheduled retention purge.
      * Defaults to daily at 03:00 in the application timezone.
      * Set to null to register no schedule and run the command manually.
